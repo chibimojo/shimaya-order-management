@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>島屋学生服 受注登録</title>
+  <style>
+    :root {
+      --color-primary: #2c5f8a;
+      --color-primary-dark: #1e4463;
+      --color-bg: #f4f6f8;
+      --color-card: #ffffff;
+      --color-border: #d9dee3;
+      --color-error: #c0392b;
+      --color-error-bg: #fdecea;
+      --color-success: #1e7e34;
+      --color-success-bg: #e9f7ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--color-bg);
+      font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      color: #222;
+      font-size: 15px;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px;
+      color: var(--color-primary-dark);
+    }
+
+    h2 {
+      font-size: 15px;
+      margin: 0 0 10px;
+      color: var(--color-primary-dark);
+    }
+
+    .card {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      font-size: 15px;
+    }
+
+    textarea { resize: vertical; }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .row > div { flex: 1; }
+
+    button {
+      background: var(--color-primary);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 16px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: var(--color-primary-dark); }
+    button:disabled { background: #a9b6c0; cursor: not-allowed; }
+
+    button.secondary {
+      background: transparent;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+    button.secondary:hover { background: #eaf1f7; }
+
+    .child-list, .product-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .selectable-item {
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+    .selectable-item.selected {
+      border-color: var(--color-primary);
+      background: #eaf1f7;
+    }
+    .selectable-item .name { font-weight: bold; }
+    .selectable-item .sub { font-size: 12px; color: #666; }
+
+    .product-item {
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .product-item .product-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .product-item .name { font-weight: bold; }
+    .product-item .price { color: #555; font-size: 13px; white-space: nowrap; }
+    .product-item .qty-input { width: 70px; }
+    .product-item .hem-input-wrap { margin-top: 8px; }
+
+    .message {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    .message.error { background: var(--color-error-bg); color: var(--color-error); }
+    .message.success { background: var(--color-success-bg); color: var(--color-success); }
+
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .loading::after {
+      content: "処理中...";
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>島屋学生服 受注登録</h1>
+
+  <div id="message-area"></div>
+
+  <!-- STEP 1: 電話番号で保護者を検索 -->
+  <div class="card" id="step-search">
+    <h2>1. 保護者を電話番号で検索</h2>
+    <div class="row">
+      <div>
+        <label for="phone-input">電話番号</label>
+        <input type="tel" id="phone-input" placeholder="例）090-1234-5678">
+      </div>
+      <div style="flex: 0 0 auto;">
+        <button id="search-btn" type="button">検索</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: 子どもを選択 -->
+  <div class="card hidden" id="step-child">
+    <h2>2. 子どもを選択</h2>
+    <p id="parent-info" class="sub"></p>
+    <div class="child-list" id="child-list"></div>
+  </div>
+
+  <!-- STEP 3: 商品を選択して受注登録 -->
+  <div class="card hidden" id="step-product">
+    <h2>3. 商品を選択</h2>
+    <div class="product-list" id="product-list"></div>
+
+    <div style="margin-top: 14px;">
+      <label for="note-input">備考</label>
+      <textarea id="note-input" rows="2" placeholder="任意"></textarea>
+    </div>
+
+    <div class="summary-line">
+      <span>合計</span>
+      <span id="total-amount">¥0</span>
+    </div>
+
+    <div class="actions">
+      <button class="secondary" type="button" id="reset-btn">最初からやり直す</button>
+      <button type="button" id="submit-btn">受注登録する</button>
+    </div>
+  </div>
+
+  <script>
+    // ==================== アプリの状態 ====================
+    var state = {
+      parent: null,   // { id, name, phone }
+      children: [],   // [{ id, name, school, grade }]
+      child: null,    // 選択中の子ども
+      products: []    // 選択中の子どもの学校向け商品一覧（isSlacks 付き）
+    };
+
+    // ==================== DOM 参照 ====================
+    var el = {
+      messageArea: document.getElementById('message-area'),
+      phoneInput: document.getElementById('phone-input'),
+      searchBtn: document.getElementById('search-btn'),
+      stepChild: document.getElementById('step-child'),
+      parentInfo: document.getElementById('parent-info'),
+      childList: document.getElementById('child-list'),
+      stepProduct: document.getElementById('step-product'),
+      productList: document.getElementById('product-list'),
+      noteInput: document.getElementById('note-input'),
+      totalAmount: document.getElementById('total-amount'),
+      submitBtn: document.getElementById('submit-btn'),
+      resetBtn: document.getElementById('reset-btn')
+    };
+
+    // ==================== メッセージ表示 ====================
+    function showMessage(text, type) {
+      el.messageArea.innerHTML = '';
+      var div = document.createElement('div');
+      div.className = 'message ' + (type === 'error' ? 'error' : 'success');
+      div.textContent = text;
+      el.messageArea.appendChild(div);
+    }
+
+    function clearMessage() {
+      el.messageArea.innerHTML = '';
+    }
+
+    function setBusy(button, busy, busyLabel, idleLabel) {
+      button.disabled = busy;
+      button.textContent = busy ? busyLabel : idleLabel;
+    }
+
+    // ==================== STEP 1: 電話番号検索 ====================
+    el.searchBtn.addEventListener('click', function() {
+      var phone = el.phoneInput.value.trim();
+      if (!phone) {
+        showMessage('電話番号を入力してください。', 'error');
+        return;
+      }
+
+      clearMessage();
+      setBusy(el.searchBtn, true, '検索中...', '検索');
+      resetFrom('child');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          setBusy(el.searchBtn, false, '検索中...', '検索');
+          onParentFound(result);
+        })
+        .withFailureHandler(function(err) {
+          setBusy(el.searchBtn, false, '検索中...', '検索');
+          showMessage(err.message || String(err), 'error');
+        })
+        .searchParentByPhone(phone);
+    });
+
+    function onParentFound(result) {
+      state.parent = result.parent;
+      state.children = result.children || [];
+
+      el.parentInfo.textContent =
+        '保護者：' + state.parent.name + '（' + state.parent.phone + '）';
+
+      el.childList.innerHTML = '';
+      if (state.children.length === 0) {
+        showMessage('この保護者に登録された子どもが見つかりませんでした。', 'error');
+        return;
+      }
+
+      state.children.forEach(function(child) {
+        var item = document.createElement('div');
+        item.className = 'selectable-item';
+
+        var name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = child.name;
+
+        var sub = document.createElement('div');
+        sub.className = 'sub';
+        sub.textContent = child.school + (child.grade ? '　' + child.grade : '');
+
+        item.appendChild(name);
+        item.appendChild(sub);
+        item.addEventListener('click', function() {
+          selectChild(child, item);
+        });
+
+        el.childList.appendChild(item);
+      });
+
+      el.stepChild.classList.remove('hidden');
+    }
+
+    // ==================== STEP 2: 子ども選択 ====================
+    function selectChild(child, itemEl) {
+      Array.prototype.forEach.call(
+        el.childList.querySelectorAll('.selectable-item'),
+        function(node) { node.classList.remove('selected'); }
+      );
+      itemEl.classList.add('selected');
+
+      state.child = child;
+      clearMessage();
+      resetFrom('product');
+      loadProducts(child.id);
+    }
+
+    function loadProducts(childId) {
+      el.productList.innerHTML = '<p class="loading"></p>';
+      el.stepProduct.classList.remove('hidden');
+
+      google.script.run
+        .withSuccessHandler(function(products) {
+          onProductsLoaded(products);
+        })
+        .withFailureHandler(function(err) {
+          el.productList.innerHTML = '';
+          showMessage(err.message || String(err), 'error');
+        })
+        .getProductsForChild(childId);
+    }
+
+    // ==================== STEP 3: 商品選択 ====================
+    function onProductsLoaded(products) {
+      state.products = products || [];
+      el.productList.innerHTML = '';
+
+      if (state.products.length === 0) {
+        el.productList.innerHTML = '';
+        showMessage('この学校に対応する商品が見つかりませんでした。', 'error');
+        return;
+      }
+
+      state.products.forEach(function(product, index) {
+        el.productList.appendChild(buildProductRow(product, index));
+      });
+
+      updateTotal();
+    }
+
+    function buildProductRow(product, index) {
+      var wrap = document.createElement('div');
+      wrap.className = 'product-item';
+      wrap.dataset.index = index;
+
+      var header = document.createElement('div');
+      header.className = 'product-header';
+
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = product.name;
+
+      var price = document.createElement('div');
+      price.className = 'price';
+      price.textContent = '¥' + Number(product.price).toLocaleString();
+
+      header.appendChild(name);
+      header.appendChild(price);
+
+      var qtyRow = document.createElement('div');
+      qtyRow.style.marginTop = '8px';
+
+      var qtyLabel = document.createElement('label');
+      qtyLabel.textContent = '数量';
+
+      var qtyInput = document.createElement('input');
+      qtyInput.type = 'number';
+      qtyInput.className = 'qty-input';
+      qtyInput.min = '0';
+      qtyInput.value = '0';
+      qtyInput.addEventListener('input', updateTotal);
+
+      qtyRow.appendChild(qtyLabel);
+      qtyRow.appendChild(qtyInput);
+
+      wrap.appendChild(header);
+      wrap.appendChild(qtyRow);
+
+      // スラックスの場合のみ「裾上げ総丈」入力欄を表示する
+      var hemInput = null;
+      if (product.isSlacks) {
+        var hemWrap = document.createElement('div');
+        hemWrap.className = 'hem-input-wrap';
+
+        var hemLabel = document.createElement('label');
+        hemLabel.textContent = '裾上げ総丈';
+
+        hemInput = document.createElement('input');
+        hemInput.type = 'text';
+        hemInput.placeholder = '例）75cm';
+
+        hemWrap.appendChild(hemLabel);
+        hemWrap.appendChild(hemInput);
+        wrap.appendChild(hemWrap);
+      }
+
+      wrap._qtyInput = qtyInput;
+      wrap._hemInput = hemInput;
+      return wrap;
+    }
+
+    function collectSelectedItems() {
+      var items = [];
+      var rows = el.productList.querySelectorAll('.product-item');
+
+      Array.prototype.forEach.call(rows, function(row) {
+        var qty = Number(row._qtyInput.value) || 0;
+        if (qty <= 0) return;
+
+        var product = state.products[Number(row.dataset.index)];
+        items.push({
+          code: product.code,
+          name: product.name,
+          price: product.price,
+          quantity: qty,
+          hemLength: row._hemInput ? row._hemInput.value.trim() : ''
+        });
+      });
+
+      return items;
+    }
+
+    function updateTotal() {
+      var items = collectSelectedItems();
+      var total = items.reduce(function(sum, item) {
+        return sum + item.price * item.quantity;
+      }, 0);
+      el.totalAmount.textContent = '¥' + total.toLocaleString();
+    }
+
+    // ==================== 受注登録 ====================
+    el.submitBtn.addEventListener('click', function() {
+      var items = collectSelectedItems();
+
+      if (items.length === 0) {
+        showMessage('商品を1件以上選択し、数量を入力してください。', 'error');
+        return;
+      }
+
+      var orderData = {
+        parentId: state.parent.id,
+        parentName: state.parent.name,
+        phone: state.parent.phone,
+        childId: state.child.id,
+        childName: state.child.name,
+        school: state.child.school,
+        items: items,
+        note: el.noteInput.value.trim()
+      };
+
+      clearMessage();
+      setBusy(el.submitBtn, true, '登録中...', '受注登録する');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          setBusy(el.submitBtn, false, '登録中...', '受注登録する');
+          showMessage('受注登録が完了しました。注文番号：' + result.orderNo, 'success');
+          resetAll();
+        })
+        .withFailureHandler(function(err) {
+          setBusy(el.submitBtn, false, '登録中...', '受注登録する');
+          showMessage(err.message || String(err), 'error');
+        })
+        .submitOrder(orderData);
+    });
+
+    // ==================== リセット処理 ====================
+    function resetFrom(fromStep) {
+      if (fromStep === 'child' || fromStep === 'product') {
+        el.stepProduct.classList.add('hidden');
+        el.productList.innerHTML = '';
+        el.totalAmount.textContent = '¥0';
+        el.noteInput.value = '';
+      }
+      if (fromStep === 'child') {
+        el.stepChild.classList.add('hidden');
+        el.childList.innerHTML = '';
+        state.child = null;
+        state.products = [];
+      }
+    }
+
+    el.resetBtn.addEventListener('click', resetAll);
+
+    function resetAll() {
+      state = { parent: null, children: [], child: null, products: [] };
+      el.phoneInput.value = '';
+      el.stepChild.classList.add('hidden');
+      el.stepProduct.classList.add('hidden');
+      el.childList.innerHTML = '';
+      el.productList.innerHTML = '';
+      el.noteInput.value = '';
+      el.totalAmount.textContent = '¥0';
+    }
+  </script>
+</body>
+</html>
