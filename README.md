@@ -1,57 +1,109 @@
-# Shimaya Order Management
+# 島屋学生服受発注管理システム
 
-A Google Apps Script app, bound to a Google Sheet, for tracking customer orders.
+Google Apps Script（スタンドアロン + Web アプリ）による、学生服の受注登録システム。
+スタッフが電話番号で保護者を検索し、子ども → 商品を選んで注文を登録する。
 
-## Structure
+## 構成
 
 ```
 src/
-  appsscript.json   Apps Script manifest (timezone, scopes)
-  Code.js           Menu + sidebar entry points
-  Constants.js      Sheet names, column layout, order statuses
-  SheetService.js   Generic sheet read/write helpers
-  OrderService.js   Order CRUD (add, list, get, update status, delete)
-  Sidebar.html      "Add Order" form shown in the Sheets sidebar
+  appsscript.json    Apps Script マニフェスト（タイムゾーン、権限、Web アプリ設定）
+  config.gs          スプレッドシートID・シート名・カラム名などの定数
+  sheetManager.gs    ヘッダー名ベースのスプレッドシート読み書きユーティリティ
+  orderManagement.gs 受注管理のビジネスロジック（検索・採番・登録）
+  orderUI.html       受注登録画面（Web UI）
 ```
 
-Orders are stored in an `Orders` sheet with columns: Order ID, Order Date,
-Customer Name, Contact, Item, Quantity, Unit Price, Total, Status, Notes.
+このスクリプトはどのスプレッドシートにも束縛されない**スタンドアロン**プロジェクトで、
+`config.gs` の `SS_ID` で指定した3つの外部スプレッドシートを `SpreadsheetApp.openById()`
+で読み書きする。
 
-## Setup
+## 使用するスプレッドシート
 
-1. Install dependencies:
+| 用途 | スプレッドシートID |
+| --- | --- |
+| 商品マスタ | `1YM_3e8ZVvERJVdl2fPCQilhfBV5NbUFeon_0TYKAkOk` |
+| 親・子ども | `179GUvz-8hxAi1WRdoDi5M9KTdiw-N7kI2LpdwFfn0EY` |
+| 受注 | `1YRP0N6A9J7xbfsB9vDvU3Ef8kbu2jRi7ibq9Mg3gxDg` |
+
+### 想定しているシート構成（`config.gs` の `SHEET_NAME` / `COL`）
+
+コードはヘッダー名（1行目のセルの文字列）でカラムを参照するため、列の並び順が
+変わっても動作する。ただし**シート名・ヘッダー名は実際のシートに合わせて
+`config.gs` を書き換える必要がある**。デフォルトの想定は以下の通り。
+
+**商品マスタ シート「商品マスタ」**
+
+| 学校 | 商品コード | 商品名 | カテゴリ | 価格 |
+| --- | --- | --- | --- | --- |
+
+- 商品名またはカテゴリに「スラックス」を含む商品は、受注登録画面で
+  「裾上げ総丈」入力欄が自動的に表示される（`config.gs` の `SLACKS_KEYWORD`）。
+
+**親・子ども スプレッドシート**
+
+シート「親」：
+
+| 親ID | 電話番号 | 保護者名 |
+| --- | --- | --- |
+
+シート「子ども」：
+
+| 子どもID | 親ID | 子ども名 | 学校 | 学年 |
+| --- | --- | --- | --- | --- |
+
+**受注 シート「受注」**
+
+| 注文番号 | 受注日 | 親ID | 保護者名 | 電話番号 | 子どもID | 子ども名 | 学校 | 商品コード | 商品名 | 数量 | 価格 | 裾上げ総丈 | ステータス | 備考 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+1件の注文に複数の商品が含まれる場合、同じ「注文番号」で明細行が複数追加される。
+注文番号は `#00001` 形式で自動採番される（既存の最大番号 + 1）。
+
+## セットアップ
+
+1. 依存関係をインストール：
    ```
    npm install
    ```
-2. Log in to clasp (opens a browser for Google OAuth):
+2. clasp にログイン（ブラウザで Google 認証）：
    ```
    npm run login
    ```
-3. Either create a new bound Apps Script project attached to a new Sheet:
+3. スタンドアロンの Apps Script プロジェクトを新規作成：
    ```
    npm run create
    ```
-   or, if a script already exists, copy `.clasp.json.example` to `.clasp.json`
-   and fill in its `scriptId`.
-4. Push the source to Apps Script:
+   既存のスクリプトを使う場合は `.clasp.json.example` を `.clasp.json` に
+   コピーし、`scriptId` を設定する。
+4. ソースを Apps Script にプッシュ：
    ```
    npm run push
    ```
-5. Open the project in the Apps Script editor or the bound Sheet:
+5. スクリプトに実行権限を与えるため、上記3つのスプレッドシートに
+   スクリプトの実行アカウント（`npm run create` を実行した Google アカウント）の
+   編集権限があることを確認する。
+6. Web アプリとして公開：
    ```
-   npm run open
+   npm run deploy
    ```
+   または Apps Script エディタから「デプロイ」→「新しいデプロイ」→
+   種類「ウェブアプリ」を選択。`appsscript.json` の `webapp` 設定では
+   アクセスを `DOMAIN`（同一 Google Workspace ドメイン内）、実行ユーザーを
+   `USER_DEPLOYING`（デプロイしたアカウント）としている。組織の運用に合わせて
+   調整すること。
 
-`.clasp.json` is gitignored since it's specific to each developer's Apps
-Script deployment.
+`.clasp.json` は開発者ごとのデプロイ情報を含むため gitignore されている。
 
-## Usage
+## 使い方（受注登録の流れ）
 
-Open the bound spreadsheet and use the **Order Management** menu:
+1. デプロイした Web アプリの URL を開く。
+2. 電話番号を入力して「検索」→ 保護者と子ども一覧が表示される。
+3. 子どもを選択 → その子どもの在籍校向けの商品一覧が表示される。
+4. 購入する商品の数量を入力（スラックスの場合は「裾上げ総丈」も入力）。
+5. 「受注登録する」を押すと受注シートに保存され、注文番号が表示される。
 
-- **Initialize Sheet** — creates the `Orders` sheet with headers if it
-  doesn't exist yet.
-- **Add Order...** — opens a sidebar form to add a new order (status
-  defaults to `Pending`).
+## 今後の予定
 
-Order statuses: `Pending`, `Confirmed`, `Shipped`, `Delivered`, `Cancelled`.
+- 受注登録完了時に LINE 通知を送信する機能（`orderManagement.gs` の
+  `submitOrder` 内に `TODO` コメントあり）。
