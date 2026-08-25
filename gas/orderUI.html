@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>島屋 受注管理画面</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-top: 0; }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      border-left: 4px solid #4285f4;
+      background: #f9f9f9;
+    }
+    .section h3 { margin-top: 0; color: #1f73e8; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #4285f4;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #1f73e8; }
+    .message {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background: #f0f0f0; font-weight: bold; }
+    tr:hover { background: #f9f9f9; }
+    .radio-group {
+      margin: 10px 0;
+    }
+    .radio-group label {
+      display: block;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛍️ 島屋 学生服 受注管理画面</h1>
+
+    <!-- メッセージ表示エリア -->
+    <div id="message"></div>
+
+    <!-- ステップ1: 親の検索 -->
+    <div class="section">
+      <h3>ステップ1: 保護者を検索</h3>
+      <input type="text" id="phoneInput" placeholder="電話番号を入力（例：090-1234-5678）" />
+      <button onclick="searchParent()">🔍 検索</button>
+    </div>
+
+    <!-- ステップ2: 親情報表示 -->
+    <div class="section hidden" id="parentSection">
+      <h3>ステップ2: 保護者情報</h3>
+      <p>名前: <strong id="parentName"></strong></p>
+      <p>メール: <strong id="parentEmail"></strong></p>
+      <button onclick="backToSearch()" style="background: #999;">◀ 戻る</button>
+    </div>
+
+    <!-- ステップ3: 子ども選択 -->
+    <div class="section hidden" id="childSection">
+      <h3>ステップ3: お子さんを選択</h3>
+      <div class="radio-group" id="childList"></div>
+      <button onclick="nextToProducts()">次へ →</button>
+    </div>
+
+    <!-- ステップ4: 商品選択 -->
+    <div class="section hidden" id="productSection">
+      <h3>ステップ4: 商品を選択</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>選択</th>
+            <th>商品名</th>
+            <th>サイズ</th>
+            <th>色</th>
+            <th>単価</th>
+          </tr>
+        </thead>
+        <tbody id="productList"></tbody>
+      </table>
+    </div>
+
+    <!-- ステップ5: 注文詳細 -->
+    <div class="section hidden" id="orderSection">
+      <h3>ステップ5: 注文詳細を確認</h3>
+      <p>選択商品: <strong id="selectedProduct"></strong></p>
+      <label>数量: <input type="number" id="quantityInput" value="1" min="1" /></label>
+      <div id="hemmingSection" class="hidden">
+        <label>裾上げ総丈(cm): <input type="number" id="hemmingInput" placeholder="65" /></label>
+      </div>
+      <label>特記事項: <textarea id="notesInput" placeholder="傷・アレルギー等"></textarea></label>
+      <button onclick="submitOrder()">✅ 注文を保存</button>
+      <button onclick="backToProducts()" style="background: #999;">◀ 戻る</button>
+    </div>
+
+    <!-- 注文完了 -->
+    <div class="section hidden" id="completeSection">
+      <h3>✅ 注文が完了しました</h3>
+      <p>注文番号: <strong id="orderNumber"></strong></p>
+      <button onclick="resetForm()">新しい注文を登録する</button>
+    </div>
+  </div>
+
+  <script>
+    let currentParent = null;
+    let currentChild = null;
+    let currentProduct = null;
+
+    function showMessage(message, type = 'info') {
+      const msg = document.getElementById('message');
+      msg.innerHTML = `<div class="${type}">${message}</div>`;
+      setTimeout(() => { msg.innerHTML = ''; }, 5000);
+    }
+
+    function searchParent() {
+      const phone = document.getElementById('phoneInput').value.trim();
+      if (!phone) {
+        showMessage('電話番号を入力してください', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler((parent) => {
+          if (parent) {
+            currentParent = parent;
+            document.getElementById('parentName').textContent = parent.name;
+            document.getElementById('parentEmail').textContent = parent.email || 'なし';
+            document.getElementById('parentSection').classList.remove('hidden');
+            showMessage('✅ 保護者が見つかりました', 'success');
+            getChildren();
+          } else {
+            showMessage('❌ 該当する保護者が見つかりません', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          showMessage('❌ 検索中にエラーが発生しました: ' + err.message, 'error');
+        })
+        .searchParent(phone);
+    }
+
+    function getChildren() {
+      if (!currentParent) return;
+
+      google.script.run
+        .withSuccessHandler((children) => {
+          const childList = document.getElementById('childList');
+          childList.innerHTML = '';
+          children.forEach((child) => {
+            const childJson = JSON.stringify(child).replace(/'/g, '&#39;');
+            childList.innerHTML += `
+              <label>
+                <input type="radio" name="child" value='${childJson}' />
+                ${child.name} (${child.grade}年生 - ${child.school})
+              </label>
+            `;
+          });
+          document.getElementById('childSection').classList.remove('hidden');
+        })
+        .withFailureHandler((err) => {
+          showMessage('❌ 子ども情報の取得に失敗しました: ' + err.message, 'error');
+        })
+        .getChildrenByParentId(currentParent.parentId);
+    }
+
+    function nextToProducts() {
+      const selected = document.querySelector('input[name="child"]:checked');
+      if (!selected) {
+        showMessage('お子さんを選択してください', 'error');
+        return;
+      }
+
+      currentChild = JSON.parse(selected.value);
+      getProducts();
+    }
+
+    function getProducts() {
+      if (!currentChild) return;
+
+      google.script.run
+        .withSuccessHandler((products) => {
+          const productList = document.getElementById('productList');
+          productList.innerHTML = '';
+          products.forEach((product) => {
+            const productJson = JSON.stringify(product).replace(/'/g, '&#39;');
+            productList.innerHTML += `
+              <tr>
+                <td><input type="radio" name="product" value='${productJson}' onchange="selectProduct(this.value)"/></td>
+                <td>${product.productName}</td>
+                <td>${product.size}</td>
+                <td>${product.color}</td>
+                <td>¥${product.price}</td>
+              </tr>
+            `;
+          });
+          document.getElementById('productSection').classList.remove('hidden');
+        })
+        .withFailureHandler((err) => {
+          showMessage('❌ 商品情報の取得に失敗しました: ' + err.message, 'error');
+        })
+        .getProductsBySchool(currentChild.school);
+    }
+
+    function selectProduct(productJson) {
+      currentProduct = JSON.parse(productJson);
+      document.getElementById('selectedProduct').textContent = `${currentProduct.productName} (${currentProduct.size})`;
+
+      // 裾上げ要否が「Y」の場合は裾上げ入力欄を表示する
+      const hemmingSection = document.getElementById('hemmingSection');
+      if (currentProduct.needsHemming === 'Y') {
+        hemmingSection.classList.remove('hidden');
+      } else {
+        hemmingSection.classList.add('hidden');
+      }
+
+      document.getElementById('orderSection').classList.remove('hidden');
+    }
+
+    function submitOrder() {
+      if (!currentProduct) {
+        showMessage('商品を選択してください', 'error');
+        return;
+      }
+
+      const quantity = parseInt(document.getElementById('quantityInput').value, 10);
+      const hemLength = document.getElementById('hemmingInput').value || '';
+      const notes = document.getElementById('notesInput').value || '';
+
+      if (!quantity || quantity < 1) {
+        showMessage('数量は1以上で入力してください', 'error');
+        return;
+      }
+
+      const orderData = {
+        childId: currentChild.childId,
+        productId: currentProduct.productId,
+        quantity: quantity,
+        hemLength: hemLength,
+        notes: notes
+      };
+
+      google.script.run
+        .withSuccessHandler((orderNumber) => {
+          document.getElementById('orderNumber').textContent = orderNumber;
+          document.getElementById('orderSection').classList.add('hidden');
+          document.getElementById('completeSection').classList.remove('hidden');
+          showMessage('✅ 注文が正常に保存されました', 'success');
+        })
+        .withFailureHandler((err) => {
+          showMessage('❌ ' + err.message, 'error');
+        })
+        .submitOrder(orderData);
+    }
+
+    function backToSearch() {
+      document.getElementById('parentSection').classList.add('hidden');
+      document.getElementById('childSection').classList.add('hidden');
+      document.getElementById('productSection').classList.add('hidden');
+      document.getElementById('orderSection').classList.add('hidden');
+      document.getElementById('phoneInput').value = '';
+      currentParent = null;
+      currentChild = null;
+      currentProduct = null;
+    }
+
+    function backToProducts() {
+      document.getElementById('orderSection').classList.add('hidden');
+    }
+
+    function resetForm() {
+      backToSearch();
+      document.getElementById('completeSection').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

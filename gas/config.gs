@@ -27,16 +27,19 @@ const SHEET_NAME = {
 // 実際のヘッダー文字列がここと異なる場合はここを書き換えるだけでよい。
 const COL = {
   PRODUCT: {
+    ID: '商品ID',
     SCHOOL: '学校',
-    CODE: '商品コード',
     NAME: '商品名',
-    CATEGORY: 'カテゴリ',
-    PRICE: '価格'
+    SIZE: 'サイズ',
+    COLOR: '色',
+    PRICE: '価格',
+    NEEDS_HEMMING: '裾上げ要否' // 'Y' ならスラックス等、裾上げ入力欄を表示
   },
   PARENT: {
     ID: '親ID',
     PHONE: '電話番号',
-    NAME: '保護者名'
+    NAME: '保護者名',
+    EMAIL: 'メールアドレス'
   },
   CHILD: {
     ID: '子どもID',
@@ -48,33 +51,17 @@ const COL = {
   ORDER: {
     ORDER_NO: '注文番号',
     DATE: '受注日',
-    PARENT_ID: '親ID',
-    PARENT_NAME: '保護者名',
-    PHONE: '電話番号',
     CHILD_ID: '子どもID',
-    CHILD_NAME: '子ども名',
-    SCHOOL: '学校',
-    PRODUCT_CODE: '商品コード',
-    PRODUCT_NAME: '商品名',
+    PRODUCT_ID: '商品ID',
     QUANTITY: '数量',
-    PRICE: '価格',
     HEM_LENGTH: '裾上げ総丈',
-    STATUS: 'ステータス',
-    NOTE: '備考'
+    NOTES: '特記事項'
   }
 };
 
-// スラックス判定用キーワード。商品名またはカテゴリにこの文字列を含む場合、
-// 受注登録画面で「裾上げ総丈」入力欄を表示する。
-const SLACKS_KEYWORD = 'スラックス';
+// 裾上げ要否カラムの「必要」を表す値
+const NEEDS_HEMMING_YES = 'Y';
 
 // 注文番号の書式設定（例: #00001）
 const ORDER_NO_PREFIX = '#';
 const ORDER_NO_DIGITS = 5;
-
-// 受注ステータス
-const ORDER_STATUS = {
-  NEW: '新規',
-  CONFIRMED: '確認済',
-  CANCELLED: 'キャンセル'
-};

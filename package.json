@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "login": "clasp login",
-    "create": "clasp create --type standalone --rootDir src --title \"島屋学生服受発注管理システム\"",
+    "create": "clasp create --type standalone --rootDir gas --title \"島屋学生服受発注管理システム\"",
     "push": "clasp push",
     "pull": "clasp pull",
     "open": "clasp open",
