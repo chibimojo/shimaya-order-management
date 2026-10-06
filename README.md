@@ -12,6 +12,11 @@ src/
   sheetManager.gs    ヘッダー名ベースのスプレッドシート読み書きユーティリティ
   orderManagement.gs 受注管理のビジネスロジック（検索・採番・登録）
   orderUI.html       受注登録画面（Web UI）
+web-api/             Web予約注文API（島屋サイトのネット予約用・別の Apps Script プロジェクト）
+  appsscript.json    マニフェスト（スプレッドシート・メール送信の権限）
+  config.gs          受注スプレッドシートID・タブ名・見出し
+  sheetManager.gs    ヘッダー名ベースの読み書き（src/sheetManager.gs と同じ関数）
+  webOrderApi.gs     doPost API（注文作成・更新・一覧・連絡履歴・メール送信）
 ```
 
 このスクリプトはどのスプレッドシートにも束縛されない**スタンドアロン**プロジェクトで、
@@ -102,6 +107,37 @@ src/
 3. 子どもを選択 → その子どもの在籍校向けの商品一覧が表示される。
 4. 購入する商品の数量を入力（スラックスの場合は「裾上げ総丈」も入力）。
 5. 「受注登録する」を押すと受注シートに保存され、注文番号が表示される。
+
+## Web予約注文API（web-api/）
+
+島屋サイト（リポジトリ `shimaya-site`、Netlify）のネット予約（指定ズック等。Square で事前決済・店頭受け取り）の
+注文を、受注スプレッドシートの **「Web受注」「連絡履歴」タブ** に記録する API。
+サイトの管理画面（`/admin/`）から、お客さんへのお知らせメールもこの API 経由で
+**shimaya.sagae@gmail.com** から送る。
+
+受注登録画面（`src/`）とは**別の Apps Script プロジェクト**にしている。
+API は Netlify のサーバーから呼ばれるため「全員」に公開する必要があり、
+同じプロジェクトにすると受注登録画面まで誰でも開けてしまうため。
+
+| 項目 | 内容 |
+| --- | --- |
+| 呼び出し元 | shimaya-site の `netlify/lib/gas.mjs`（環境変数 `GAS_URL` / `GAS_SECRET`） |
+| 認証 | スクリプトプロパティ `WEB_API_SECRET` と、リクエストの `secret` が一致したときだけ動く |
+| 操作 | `createOrder` / `updateOrder` / `listOrders` / `getOrder` / `logContact` / `sendEmail` |
+| 注文番号 | `W00001` 形式（店頭受注の `#00001` とは別の連番） |
+
+### セットアップ（shimaya.sagae@gmail.com で）
+
+1. `npm run web:create`（または script.google.com で新規プロジェクトを作り、
+   `web-api/.clasp.json.example` を `web-api/.clasp.json` にコピーして `scriptId` を設定）
+2. `npm run web:push`
+3. エディタの「プロジェクトの設定」→ スクリプト プロパティに `WEB_API_SECRET`
+   （Netlify の `GAS_SECRET` と同じ長いランダム文字列）を追加
+4. エディタで `setupWebOrder` を1回実行して権限を許可（タブが自動で作られる）
+5. 「デプロイ」→「新しいデプロイ」→ ウェブアプリ、実行ユーザー＝自分、
+   アクセス＝全員 でデプロイし、URL を Netlify の `GAS_URL` に登録
+6. コードを変えたら `npm run web:push` のあと「デプロイを管理」→ 編集 →
+   バージョン「新バージョン」で更新する（URL は変わらない）
 
 ## 今後の予定
 

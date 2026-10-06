@@ -10,7 +10,10 @@
     "push": "clasp push",
     "pull": "clasp pull",
     "open": "clasp open",
-    "deploy": "clasp deploy"
+    "deploy": "clasp deploy",
+    "web:create": "cd web-api && clasp create --type standalone --rootDir . --title \"島屋 Web予約注文API\"",
+    "web:push": "cd web-api && clasp push",
+    "web:open": "cd web-api && clasp open"
   },
   "keywords": [],
   "author": "",
