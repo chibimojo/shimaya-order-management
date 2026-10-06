@@ -43,6 +43,7 @@ var WEB_ACTIONS_ = {
       '注文番号': no, '受注日時': now, '決済状態': '決済待ち', 'ステータス': '受注受付',
       '学校': d.school, '学年': d.grade, '生徒名': d.student, '商品内容': d.items, '合計金額': d.total,
       '電話番号': "'" + d.phone, // 先頭の0が消えないように
+      '連絡方法': d.contact || '', 'メール': d.email || '',
       '編集日時': now
     };
     appendRecord_(sh, rec);
@@ -114,7 +115,7 @@ var WEB_ACTIONS_ = {
   }
 };
 
-/** タブを取得。無ければ見出し付きで作る */
+/** タブを取得。無ければ見出し付きで作る。足りない見出しは右端に追加する */
 function webSheet_(name, headers) {
   var ss = SpreadsheetApp.openById(SS_ID.ORDER);
   var sh = ss.getSheetByName(name);
@@ -122,6 +123,12 @@ function webSheet_(name, headers) {
     sh = ss.insertSheet(name);
     sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sh.setFrozenRows(1);
+    return sh;
+  }
+  var map = getHeaderMap_(sh);
+  var missing = headers.filter(function (h) { return map[h] === undefined; });
+  if (missing.length) {
+    sh.getRange(1, sh.getLastColumn() + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
   }
   return sh;
 }
